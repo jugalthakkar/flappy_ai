@@ -1,3 +1,4 @@
+import neat.config
 import pygame
 import neat
 import time
@@ -15,12 +16,13 @@ BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png"
 
 
 
-def draw_window(win, bird, pipes, base):
+def draw_window(win, birds, pipes, base):
     win.blit(BG_IMG, (0,0))
     for pipe in pipes:
         pipe.draw(win)
     base.draw(win)
-    bird.draw(win)
+    for bird in birds:
+        bird.draw(win)
     pygame.display.update()
 
 
@@ -42,8 +44,18 @@ def check_collision(bird, pipes, base):
     return False
 
 
-def main():
-    bird = Bird(200, 200)
+def main(genomes, config):
+    birds = []
+    nets = []
+    ge = []
+    
+    for _, g in genomes:
+        net = neat.nn.FeedForwardNetwork.create(g,config)
+        nets.append(net)
+        birds.append(Bird(200, 200))
+        g.fitness = 0
+        ge.append(g)
+    
     ground = Ground(MIN_HEIGHT - 100)
     win = pygame.display.set_mode((MIN_WIDTH, MIN_HEIGHT))
     clock = pygame.time.Clock()
@@ -55,11 +67,12 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
-            elif event.type == pygame.KEYDOWN:
-                # if event.key == pygame.K_SPACE:
-                bird.jump()
-        bird.move()
-        
+                pygame.quit()
+                quit()
+            
+       
+             
+        deaths = []        
         for pipe in pipes:
             pipe.move()
       
@@ -68,14 +81,53 @@ def main():
       
         if(pipes[-1].x <MIN_WIDTH/3):
             pipes.append(Pipe(MIN_WIDTH))
+            for i,g in enumerate(ge):
+                if i not in deaths:
+                    g.fitness += 5
         
-      
-        if(check_collision(bird,pipes, ground)):
+        pipe_idx = 0
+        if len(birds) > 0:
+            if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].img_top.get_width():
+                pipe_idx = 1
+        else:
             run = False
+            break
+        
+        for i, bird in enumerate(birds):
+            bird.move()
+            if(check_collision(bird,pipes, ground)):
+                deaths.append(i)
+            else:
+                ge[i].fitness += 0.1
+                output = nets[i].activate((bird.y,abs(bird.y - pipes[pipe_idx].height), abs(bird.y - pipes[pipe_idx].bottom)))
+                
+                if output[0] > 0.5:
+                    bird.jump()
+                    
+
         # else:
-        draw_window(win, bird, pipes, ground)
+        draw_window(win, birds, pipes, ground)
+        deaths.sort(reverse=True)
+        for i in deaths:
+            ge[i].fitness -= 1
+            birds.pop(i)
+            nets.pop(i)
+            ge.pop(i)
     
-    pygame.quit()
-    quit()
+  
+
+def run(config_path):
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation,config_path)
     
-main()
+    p = neat.Population(config)
+    
+    p.add_reporter(neat.StdOutReporter(True))
+    p.add_reporter(neat.StatisticsReporter())
+    
+    winner =p.run(main,100)
+
+
+if __name__ == "__main__":
+    local_dir = os.path.dirname(__file__)
+    config_path = os.path.join(local_dir,"config_feed_forward.txt")
+    run(config_path)
