@@ -8,26 +8,36 @@ from ground import Ground
 from bird import Bird
 from pipe import Pipe
 
-MIN_WIDTH = 500
-MIN_HEIGHT = 800
+pygame.font.init()
+
+WIN_WIDTH = 500
+WIN_HEIGHT = 800
 
 
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 
+STAT_FONT = pygame.font.SysFont("comicsans", 30)
 
 
-def draw_window(win, birds, pipes, base):
+def draw_window(win, birds, pipes, base, score, gen):
     win.blit(BG_IMG, (0,0))
     for pipe in pipes:
         pipe.draw(win)
     base.draw(win)
     for bird in birds:
         bird.draw(win)
+        
+    text = STAT_FONT.render("Gen: " + str(gen),1,(255,255,255))
+    win.blit(text,(10,10))
+    
+    text = STAT_FONT.render("Score: " + str(score),1,(255,255,255))
+    win.blit(text,(WIN_WIDTH - 10 - text.get_width(),10))
+        
     pygame.display.update()
 
 
 ALLOWED_MARGIN = 10
-
+curr_gen = 0
 def check_collision(bird, pipes, base):
     if bird.y <= 0 - ALLOWED_MARGIN:
         return True 
@@ -45,10 +55,12 @@ def check_collision(bird, pipes, base):
 
 
 def main(genomes, config):
+    global curr_gen
     birds = []
     nets = []
     ge = []
-    
+    curr_gen += 1
+    score = 0
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g,config)
         nets.append(net)
@@ -56,12 +68,12 @@ def main(genomes, config):
         g.fitness = 0
         ge.append(g)
     
-    ground = Ground(MIN_HEIGHT - 100)
-    win = pygame.display.set_mode((MIN_WIDTH, MIN_HEIGHT))
+    ground = Ground(WIN_HEIGHT - 100)
+    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     clock = pygame.time.Clock()
     
     run = True
-    pipes = [Pipe(MIN_WIDTH)]
+    pipes = [Pipe(WIN_WIDTH)]
     while run:
         clock.tick(30)
         for event in pygame.event.get():
@@ -79,8 +91,9 @@ def main(genomes, config):
         if(pipes[0].passed):
             pipes.pop(0)
       
-        if(pipes[-1].x <MIN_WIDTH/3):
-            pipes.append(Pipe(MIN_WIDTH))
+        if(pipes[-1].x <WIN_WIDTH/3):
+            pipes.append(Pipe(WIN_WIDTH))
+            score += 1
             for i,g in enumerate(ge):
                 if i not in deaths:
                     g.fitness += 5
@@ -106,7 +119,7 @@ def main(genomes, config):
                     
 
         # else:
-        draw_window(win, birds, pipes, ground)
+        draw_window(win, birds, pipes, ground, score, curr_gen)
         deaths.sort(reverse=True)
         for i in deaths:
             ge[i].fitness -= 1
