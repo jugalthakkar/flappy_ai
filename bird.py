@@ -2,6 +2,8 @@ import pygame
 import os
 
 BIRD_IMGS = [pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird1.png"))),pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird2.png"))),pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bird3.png")))]
+JUMP_SOUND = pygame.mixer.Sound(os.path.join("sound","jump.mp3"))
+JUMP_SOUND.set_volume(0.2)
 
 class Bird:
     IMGS = BIRD_IMGS
@@ -9,6 +11,7 @@ class Bird:
     ROT_VEL = 8
     ANIMATION_TIME = 5
     GRAVITY = 2.5
+    
 
     def __init__(self, x, y):
         self.x = x
@@ -24,6 +27,7 @@ class Bird:
         self.velocity = -10.5
         self.height = self.y
         self.tick_count = 0
+        JUMP_SOUND.play()
 
     def move(self):
         self.tick_count += 1
