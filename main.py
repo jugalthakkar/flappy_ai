@@ -9,7 +9,15 @@ from pipe import Pipe
 
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
+pygame.init()
+pygame.mixer.init()
 pygame.font.init()
+
+JUMP_SOUND = pygame.mixer.Sound(os.path.join("sound","jump.mp3"))
+JUMP_SOUND.set_volume(0.2)
+GAME_OVER_SOUND = pygame.mixer.Sound(os.path.join("sound","game-over.mp3"))
+GAME_OVER_SOUND.set_volume(1)
+
 
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 
@@ -48,7 +56,7 @@ def check_collision(bird, pipes, base):
 
 def main():
     bird = Bird(200, 200)
-    ground = Ground(WIN_HEIGHT - 100)
+    ground = Ground(WIN_HEIGHT - 70)
     win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
     pygame.display.set_caption("Flap Flap Flappy!!")
     clock = pygame.time.Clock()
@@ -57,14 +65,22 @@ def main():
     run = True
     pipes = [Pipe(WIN_WIDTH)]
     score = 0
+    paused = False
     while run:
         clock.tick(30)
+        
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
             elif event.type == pygame.KEYDOWN:
-                # if event.key == pygame.K_SPACE:
-                bird.jump()
+                if event.key == pygame.K_SPACE:
+                    paused = not paused
+                elif paused == False:
+                    bird.jump()
+                    JUMP_SOUND.play()
+        if paused:
+            continue  
+        
         bird.move()
         ground.move()
         
@@ -88,7 +104,13 @@ def main():
         # else:
         draw_window(win, bird, pipes, ground, score)
     
-    pygame.quit()
-    quit()
+    GAME_OVER_SOUND.play()
+    while True:
+        clock.tick(5)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+    
     
 main()
