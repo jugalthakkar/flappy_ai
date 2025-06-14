@@ -61,6 +61,8 @@ def main(genomes, config):
     ge = []
     curr_gen += 1
     score = 0
+    # WIN_SCORE_THRESHOLD will only apply during training (when multiple birds exist)
+    WIN_SCORE_THRESHOLD = 50
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g,config)
         nets.append(net)
@@ -75,7 +77,7 @@ def main(genomes, config):
     run = True
     pipes = [Pipe(WIN_WIDTH)]
     while run:
-        clock.tick(30)
+        clock.tick(300)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -91,12 +93,17 @@ def main(genomes, config):
         if(pipes[0].passed):
             pipes.pop(0)
       
-        if(pipes[-1].x <WIN_WIDTH/3):
+        if(pipes[-1].x <WIN_WIDTH/(2 if score > 40 else (2.5 if score > 20 else 3))):
             pipes.append(Pipe(WIN_WIDTH))
             score += 1
             for i,g in enumerate(ge):
                 if i not in deaths:
                     g.fitness += 5
+            # Only apply early termination if there are multiple birds (i.e., during training)
+            if len(birds) > 1 and score >= WIN_SCORE_THRESHOLD:
+                run = False
+                print(f"Generation {curr_gen} ended early due to a bird reaching score {score}")
+                break
         
         pipe_idx = 0
         if len(birds) > 0:
@@ -114,7 +121,7 @@ def main(genomes, config):
                 ge[i].fitness += 0.1
                 output = nets[i].activate((bird.y,abs(bird.y - pipes[pipe_idx].height), abs(bird.y - pipes[pipe_idx].bottom)))
                 
-                if output[0] > 0.5:
+                if output[0] > 0:
                     bird.jump()
                     
 
@@ -138,7 +145,17 @@ def run(config_path):
     p.add_reporter(neat.StatisticsReporter())
     
     winner =p.run(main,100)
-
+    # Added lines to run the game with the winner genome
+    print('\nWINNER WINNER, CHICKEN DINNER!\n\nBest genome:\n{!s}'.format(winner))
+    winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
+    main([(0, winner)], config)
+    while True:
+        pygame.time.Clock().tick(300)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            
 
 if __name__ == "__main__":
     local_dir = os.path.dirname(__file__)
