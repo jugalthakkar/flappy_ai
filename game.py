@@ -13,7 +13,7 @@ class Game:
     def __init__(self, win):
         self.bird = Bird(200, 200)
         self.ground = Ground(win.get_height() - 70)
-        self.pipes = [Pipe(win.get_width())]
+        self.pipes = [Pipe(win.get_width()-20)]
         self.score = 0
         self.win = win
         self.over = False

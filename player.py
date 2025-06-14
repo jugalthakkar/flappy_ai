@@ -43,16 +43,22 @@ class Player:
             pygame.display.update()
         return game.over
     
-    def start(self):
-        is_over = self._run_game()
-        if is_over:
-            GAME_OVER_SOUND.play()
-        while True:
-            self.clock.tick(5)
+    def _wait_after_game(self):
+        waiting_for_input = True
+        while waiting_for_input:
+            self.clock.tick(5) # Lower tick rate as no active game logic
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     quit()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_r:
-                        return self.start()
+                        return True
+            
+    def start(self):
+        play = True
+        while play:
+            is_over = self._run_game()
+            if is_over:
+                GAME_OVER_SOUND.play()
+            play = self._wait_after_game()
