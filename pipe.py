@@ -26,8 +26,6 @@ class Pipe:
 
     def move(self):
         self.x -= self.VEL
-        if self.x <= -self.img_top.get_width():
-            self.passed = True
 
     def draw(self, win):
         win.blit(self.img_top,(self.x,self.top))
