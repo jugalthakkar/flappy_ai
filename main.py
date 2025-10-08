@@ -4,6 +4,7 @@ import neat
 import time
 import os
 import pickle
+import argparse
 
 from ground import Ground
 from bird import Bird
@@ -11,19 +12,21 @@ from pipe import Pipe
 
 pygame.font.init()
 
-WIN_WIDTH = 500
-WIN_HEIGHT = 800
-SPEED = 100
-WIN_SCORE_THRESHOLD = 80
+SPEED = 50
+WIN_SCORE_THRESHOLD = 50
+MIN_SURVIVORS = 5
+JUMP_THRESHOLD = 0
 
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 
 SCORE_FONT = pygame.font.SysFont("comicsans", 30)
 
 STAT_FONT = pygame.font.SysFont("comicsans", 20)
+WIN_WIDTH = 500
+WIN_HEIGHT = 800
 
 
-def draw_window(win, birds, pipes, base, score, gen):
+def draw_window(win, birds, pipes, base, score, gen, current_ge_list, initial_genomes_for_avg_calc):
     win.blit(BG_IMG, (0,0))
     for pipe in pipes:
         pipe.draw(win)
@@ -36,6 +39,14 @@ def draw_window(win, birds, pipes, base, score, gen):
     
     text = STAT_FONT.render("Birds: " + str(len(birds)),1,(255,255,255))
     win.blit(text,(WIN_WIDTH - 10 - text.get_width(),30))
+    
+    # Calculate and display average fitness
+    avg_fitness = 0
+    if len(initial_genomes_for_avg_calc) > 0:
+        total_fitness = sum(g.fitness for _, g in initial_genomes_for_avg_calc)
+        avg_fitness = int(round(total_fitness / len(initial_genomes_for_avg_calc), 0))
+    text = STAT_FONT.render("Avg Fitness: " + str(avg_fitness),1,(255,255,255))
+    win.blit(text,(WIN_WIDTH - 10 - text.get_width(),70))
     
     text = STAT_FONT.render("Score: " + str(score),1,(255,255,255))
     win.blit(text,(WIN_WIDTH - 10 - text.get_width(),10))
@@ -65,7 +76,8 @@ def main(genomes, config):
     global curr_gen
     birds = []
     nets = []
-    ge = []
+    ge = []  # Initialize ge here
+    initial_genomes_for_avg_calc = list(genomes)  # Store a copy of initial genomes for average fitness
     curr_gen += 1
     score = 0
     # WIN_SCORE_THRESHOLD will only apply during training (when multiple birds exist)
@@ -114,7 +126,7 @@ def main(genomes, config):
                 break
         
         pipe_idx = 0
-        if len(birds) > 5:
+        if len(birds) > MIN_SURVIVORS:
             if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].img_top.get_width():
                 pipe_idx = 1
         else:
@@ -143,20 +155,87 @@ def main(genomes, config):
                     dRight2 = WIN_WIDTH
                 output = nets[i].activate((bird.y,dLeft1,dRight1,dTop1, dBottom1,dLeft2,dRight2,dTop2, dBottom2))
                 
-                if output[0] > 0:
+
+                if output[0] > JUMP_THRESHOLD:
                     bird.jump()
                     
 
         # else:
-        draw_window(win, birds, pipes, ground, score, curr_gen)
+        draw_window(win, birds, pipes, ground, score, curr_gen, ge, initial_genomes_for_avg_calc)
         deaths.sort(reverse=True)
         for i in deaths:
-            ge[i].fitness -= 1
+            ge[i].fitness -= 10
             birds.pop(i)
             nets.pop(i)
             ge.pop(i)
     
   
+
+def run_game_with_genome(genome, config):
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
+    bird = Bird(200, 200)
+    ground = Ground(WIN_HEIGHT - 100)
+    win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
+    clock = pygame.time.Clock()
+
+    pipes = [Pipe(WIN_WIDTH)]
+    score = 0
+    run = True
+
+    while run:
+        clock.tick(SPEED)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                run = False
+                pygame.quit()
+                quit()
+
+        bird.move()
+
+        pipe_idx = 0
+        if len(pipes) > 1 and bird.x > pipes[0].x + pipes[0].img_top.get_width():
+            pipe_idx = 1
+
+        dLeft1 = pipes[pipe_idx].x - bird.x
+        dRight1 = pipes[pipe_idx].x - bird.x + pipes[pipe_idx].img_top.get_width()
+        dTop1 = abs(bird.y - pipes[pipe_idx].height)
+        dBottom1 = abs(bird.y - pipes[pipe_idx].bottom)
+        if len(pipes) > pipe_idx + 1:
+            dTop2 = abs(bird.y - pipes[pipe_idx + 1].height)
+            dBottom2 = abs(bird.y - pipes[pipe_idx + 1].bottom)
+            dLeft2 = pipes[pipe_idx + 1].x - bird.x
+            dRight2 = pipes[pipe_idx].x - bird.x + pipes[pipe_idx + 1].img_top.get_width()
+        else:
+            dTop2 = WIN_HEIGHT
+            dBottom2 = WIN_HEIGHT
+            dLeft2 = WIN_WIDTH
+            dRight2 = WIN_WIDTH
+        
+        output = net.activate((bird.y, dLeft1, dRight1, dTop1, dBottom1, dLeft2, dRight2, dTop2, dBottom2))
+
+        if output[0] > JUMP_THRESHOLD:
+            bird.jump()
+        
+        rem_pipes = []
+        for pipe in pipes:
+            if pipe.x + pipe.img_top.get_width() < 0:
+                rem_pipes.append(pipe)
+            if not pipe.passed and pipe.x < bird.x:
+                pipe.passed = True
+                score += 1
+            pipe.move()
+        
+        for r_pipe in rem_pipes:
+            pipes.remove(r_pipe)
+        
+        if pipes[-1].x < WIN_WIDTH - 200:
+            pipes.append(Pipe(WIN_WIDTH))
+
+        if check_collision(bird, pipes, ground):
+            print(f"Game Over! Score: {score}")
+            break # Exit the game loop on collision
+
+        draw_window(win, [bird], pipes, ground, score, 0, [], [(0, genome)]) # Gen 0, empty ge, use single genome for avg fitness
 
 def run(config_path):
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation,config_path)
@@ -173,16 +252,33 @@ def run(config_path):
     with open("best_genome.pkl", "wb") as f:
         pickle.dump(winner, f)
     winner_net = neat.nn.FeedForwardNetwork.create(winner, config)
-    main([(0, winner)], config)
-    while True:
-        pygame.time.Clock().tick(300)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
-            
+    run_game_with_genome(winner, config) # Call the new function to run the winner
+    # The previous while True loop is now handled within run_game_with_genome
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Flappy Bird AI with NEAT")
+    parser.add_argument('--mode', type=str, default='train', choices=['train', 'test'],
+                        help='Mode to run the AI: train a new model or test an existing one.')
+    parser.add_argument('--genome-path', type=str, default='best_genome.pkl',
+                        help='Path to the .pkl file containing the trained genome (only for test mode).')
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
+    args = parse_arguments()
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir,"config_feed_forward.txt")
-    run(config_path)
+
+    if args.mode == 'train':
+        run(config_path)
+    elif args.mode == 'test':
+        config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
+        try:
+            with open(args.genome_path, "rb") as f:
+                winner_genome = pickle.load(f)
+        except FileNotFoundError:
+            print(f"Error: Genome file not found at {args.genome_path}")
+            quit()
+        
+        run_game_with_genome(winner_genome, config) # Call the new function for test mode
+        # The previous while True loop is now handled within run_game_with_genome
