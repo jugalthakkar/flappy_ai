@@ -13,18 +13,18 @@ class Bird:
     GRAVITY = 2.5
     
 
-    def __init__(self, x, y):
+    def __init__(self, x, y, velocity):
         self.x = x
         self.y = y
         self.tilt = 0
-        self.velocity = 0
+        self.velocity = velocity
         self.height = y
         self.img_count = 0
         self.img = self.IMGS[0]
         self.tick_count = 0
 
     def jump(self):
-        self.velocity = -10.5
+        # self.velocity = -15 if self.difficulty
         self.height = self.y
         self.tick_count = 0
         JUMP_SOUND.play()
@@ -33,8 +33,8 @@ class Bird:
         self.tick_count += 1
         d = self.velocity * self.tick_count + 0.5 * self.GRAVITY * (self.tick_count ** 2)
 
-        if self.height + d - self.y > 40:
-            self.y += 40
+        if self.height + d - self.y > 30:
+            self.y += 30
         else:
             self.y = self.height + d
         # if d < 0:

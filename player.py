@@ -4,6 +4,7 @@ pygame.init()
 pygame.mixer.init()
 pygame.font.init()
 
+from difficulty import Difficulty
 from game import Game
 
 WIN_WIDTH = 500
@@ -14,19 +15,19 @@ GAME_OVER_SOUND.set_volume(1)
 
 class Player:
     
-    def __init__(self):
+    def __init__(self, difficulty):
         pygame.display.set_caption("Flap Flap Flappy!!")
         self.win = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
         self.clock = pygame.time.Clock()
-        
+        self.difficulty = difficulty
         
     
     def _run_game(self):
-        game = Game(self.win)
+        game = Game(self.win, self.difficulty)
         run = True
         paused = False
         while run:
-            self.clock.tick(30)
+            self.clock.tick(10 if self.difficulty == Difficulty.EASY else 30)
             event_for_game = None
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:

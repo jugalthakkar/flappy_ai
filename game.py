@@ -3,6 +3,7 @@ from ground import Ground
 from pipe import Pipe
 import pygame
 import os
+from difficulty import Difficulty
 
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 
@@ -10,14 +11,18 @@ FONT = pygame.font.SysFont("comicsans",30,bold=True)
 
 class Game:
     ALLOWED_MARGIN = 10
-    def __init__(self, win):
-        self.bird = Bird(200, 200)
+    def __init__(self, win, difficulty):
+        self.difficulty = difficulty
+        self.bird = Bird(100 if difficulty == Difficulty.EASY else 200, 200,-15 if difficulty == Difficulty.EASY else -10.5)
+        self.gap = 400 if self.difficulty == Difficulty.EASY else 200
         self.ground = Ground(win.get_height() - 70)
-        self.pipes = [Pipe(win.get_width()-20)]
+        self.pipes = [Pipe(win.get_width()-20,self.gap)]
         self.score = 0
         self.win = win
         self.over = False
         self.start = False
+        
+        
 
     def _handle_event(self, event):
         if event and event.key:
@@ -27,6 +32,7 @@ class Game:
                 self.start = True
 
     def _check_collision(self):
+        return False
         if self.bird.y <= 0 - self.ALLOWED_MARGIN:
             return True
         if self.bird.y + self.bird.img.get_height() >= self.ground.top:
@@ -53,7 +59,7 @@ class Game:
         if(self.pipes[0].passed == False and self.pipes[0].x +self.pipes[0].img_top.get_width() < self.bird.x):
             self.score += 1
             self.pipes[0].passed = True
-            self.pipes.append(Pipe(self.win.get_width()))
+            self.pipes.append(Pipe(self.win.get_width(),self.gap))
 
         if(self.pipes[0].x < -self.pipes[0].img_top.get_width()):
             self.pipes.pop(0)
