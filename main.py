@@ -12,7 +12,7 @@ from pipe import Pipe
 
 pygame.font.init()
 
-SPEED = 50
+SPEED = 20
 WIN_SCORE_THRESHOLD = 50
 MIN_SURVIVORS = 5
 JUMP_THRESHOLD = 0
