@@ -13,11 +13,14 @@ pygame.font.init()
 
 WIN_WIDTH = 500
 WIN_HEIGHT = 800
-
+SPEED = 100
+WIN_SCORE_THRESHOLD = 80
 
 BG_IMG = pygame.transform.scale2x(pygame.image.load(os.path.join("imgs","bg.png")))
 
-STAT_FONT = pygame.font.SysFont("comicsans", 30)
+SCORE_FONT = pygame.font.SysFont("comicsans", 30)
+
+STAT_FONT = pygame.font.SysFont("comicsans", 20)
 
 
 def draw_window(win, birds, pipes, base, score, gen):
@@ -29,7 +32,10 @@ def draw_window(win, birds, pipes, base, score, gen):
         bird.draw(win)
         
     text = STAT_FONT.render("Gen: " + str(gen),1,(255,255,255))
-    win.blit(text,(10,10))
+    win.blit(text,(WIN_WIDTH - 10 - text.get_width(),50))
+    
+    text = STAT_FONT.render("Birds: " + str(len(birds)),1,(255,255,255))
+    win.blit(text,(WIN_WIDTH - 10 - text.get_width(),30))
     
     text = STAT_FONT.render("Score: " + str(score),1,(255,255,255))
     win.blit(text,(WIN_WIDTH - 10 - text.get_width(),10))
@@ -63,7 +69,7 @@ def main(genomes, config):
     curr_gen += 1
     score = 0
     # WIN_SCORE_THRESHOLD will only apply during training (when multiple birds exist)
-    WIN_SCORE_THRESHOLD = 80
+
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g,config)
         nets.append(net)
@@ -78,7 +84,8 @@ def main(genomes, config):
     run = True
     pipes = [Pipe(WIN_WIDTH)]
     while run:
-        clock.tick(500)
+        
+        clock.tick(SPEED)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -107,7 +114,7 @@ def main(genomes, config):
                 break
         
         pipe_idx = 0
-        if len(birds) > 0:
+        if len(birds) > 5:
             if len(pipes) > 1 and birds[0].x > pipes[0].x + pipes[0].img_top.get_width():
                 pipe_idx = 1
         else:
